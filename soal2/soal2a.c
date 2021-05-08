@@ -11,38 +11,38 @@
 int main() {
 
     int i,j,k;
-    int matrix1[M1_baris][M1_kolom];
-    int matrix2[M2_baris][M2_kolom];
+    int A[M1_baris][M1_kolom];
+    int B[M2_baris][M2_kolom];
 
     printf("Input matrix 4x3\n");
 	for (i = 0; i < M1_baris; i++) {
     	for (j = 0; j < M1_kolom; j++) {
-      		scanf("%d", &matrix1[i][j]);
+      		scanf("%d", &A[i][j]);
    	 	}
   	}
   	printf("Input matrix 3x6\n");
 	for (i = 0; i < M2_baris; i++) {
     	for (j = 0; j < M2_kolom; j++) {
-      		scanf("%d", &matrix2[i][j]);
+      		scanf("%d", &B[i][j]);
    	 	}
   	}
 
 	key_t key = 1010;
-  	int (*value)[M2_kolom];
+  	int (*hasil)[M2_kolom];
 
   	int shmid = shmget(key, sizeof(int[4][6]), IPC_CREAT | 0666);
-  	value = shmat(shmid, NULL, 0);
+  	hasil = shmat(shmid, NULL, 0);
 
   	printf("Hasil Perkalian Matriks \n");
   	for (i = 0; i < M1_baris; i++) {
     	for (j = 0; j < M2_kolom; j++) {
     		for (k = 0; k< 3; k++){
-      			value[i][j] += matrix1[i][k] * matrix2[k][j];
+      			hasil[i][j] += A[i][k] * B[k][j];
 			}
-      		printf("%d ",value[i][j]);
+      		printf("%d ", hasil[i][j]);
    	 	}
     	printf("\n");
   	}
-  	shmdt(value);
+  	shmdt(hasil);
   	return 0;
 }
