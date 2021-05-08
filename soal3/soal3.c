@@ -41,7 +41,7 @@ void pindah_file(char source[], char destination[]){
 
     fclose(file1);
     fclose(file2);
-    repindah(source);
+    remove(source);
   
     return;
 }
