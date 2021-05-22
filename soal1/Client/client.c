@@ -74,8 +74,6 @@ void download_book(int fd) {
     return_val = send(fd, filename, sizeof(filename), 0);
 
     sprintf(filePath, "%s%s", "/home/farhan/Sisop/Modul3/soal-shift-sisop-modul-3-F12-2021/soal1/Client/", filename);
-    FILE *file = fopen(filePath, "w");
-    fclose(file);
     while(1) {
         if(recv(fd, file_data, sizeof(file_data), 0) != -1) {
             if(!strcmp(file_data, "404")) {
@@ -87,7 +85,7 @@ void download_book(int fd) {
                 return;
             }
             
-            file = fopen(filePath, "a");
+            FILE *file = fopen(filePath, "a");
             fprintf(file, "%s", file_data);
             bzero(file_data, 4096);
             fclose(file);
