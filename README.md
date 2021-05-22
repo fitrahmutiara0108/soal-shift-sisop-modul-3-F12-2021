@@ -332,8 +332,21 @@ Ketika server menerima command `add` dari client, server akan menambahkan file y
 
 **Server**
 
-Pada fungsi `add_cmd`, server menerima data berupa publisher, tahun publikasi, dan path dari file (buku) yang dikirim client, kemudian dicatat pada file **files.tsv**. File kemudian diterima per baris pada server hingga akhir file, dan setelah file diterima, informasi penambahan file dicatat pada file **running.log**. Fungsi `get_file_name` digunakan untuk mendapatkan file name dari path file yang dikirim client untuk digunakan dalam pencatatan ke file **running.log**. Setelah proses penambahan file selesai dan lognya tercatat, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+- Pada fungsi `add_cmd`, server menerima data berupa publisher, tahun publikasi, dan path dari file (buku) yang dikirim client, kemudian dicatat pada file **files.tsv**. File kemudian diterima per baris pada server hingga akhir file, dan setelah file diterima, informasi penambahan file dicatat pada file **running.log**. 
+- Fungsi `get_file_name` digunakan untuk mendapatkan file name dari file path yang dikirim client untuk digunakan dalam pencatatan ke file **running.log**. String file path di-traverse dari paling kanan hingga menemukan `/` untuk mengambil file name-nya saja, kemudian karena urutan traversal terbalik (dari kanan ke kiri) maka untuk menghasilkan file name yang tepat, string yang menyimpan file name harus dibalik (`strrev`) setelah traversal selesai. Pada
+- Setelah proses penambahan file selesai dan lognya tercatat, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
 ```c
+...
+char *strrev(char *str) {
+    char *p1, *p2;
+
+    if (!str || ! *str) return str;
+    for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2) {
+        *p1 ^= *p2; *p2 ^= *p1;  *p1 ^= *p2;
+    }
+    return str;
+}
+
 void get_file_name(char filepath[], char filename[]) {
     int i = strlen(filepath) - 1, j = 0;
     while(i) {
@@ -404,7 +417,7 @@ int main () {
 
 **Client**
 
-Pada fungsi `add_book`, client mengirim data publisher, tahun publikasi, dan file dari path yang dimasukkan. 
+Pada fungsi `add_book`, client mengirim data publisher, tahun publikasi, dan file dari path yang dimasukkan. Input data pada client menggunakan `fgets` untuk memungkinkan adanya spasi pada publisher atau file path, kemudian karakter `\n` (newline) pada akhir string dihilangkan.
 ```c
 void add_book(int fd){
     char publisher[100], tahun[10], filepath[128];
@@ -659,7 +672,7 @@ int main () {
 
 **Client**
 
-Pada fungsi `delete_book`, client menerima pesan dari server dan menampilkan pesan penghapusan sukses jika pesan yang diterima adalah `OK`, dan menampilkan pesan penghapusan gagal jika pesan yang diterima adalah `404`.
+Pada fungsi `delete_book`, client mengirim nama file yang akan dihapus, kemudian menampilkan pesan penghapusan sukses jika pesan yang diterima dari server adalah `OK`, dan menampilkan pesan penghapusan gagal jika pesan yang diterima adalah `404`.
 ```c
 void delete_book(int fd) {
     int return_value;
