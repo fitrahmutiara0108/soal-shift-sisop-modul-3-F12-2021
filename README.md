@@ -221,5 +221,5 @@ int listFilesRecursively(char *basePath, int *fileCount){
 
 
 ### Kendala dan Error selama pengerjaan
-- Muncul peringatan warning di terminal 
 ![Screenshot (1102)](https://user-images.githubusercontent.com/81247727/119217398-2df18b80-bb04-11eb-9b50-15b1875b138a.png)
+- Muncul peringatan warning di terminal 
