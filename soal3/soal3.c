@@ -1,172 +1,178 @@
-#include<stdio.h>
-#include<dirent.h>
-#include<pthread.h>
-#include<string.h>
-#include<stdlib.h>
-#include<unistd.h>
-#include<sys/stat.h>
-#include<sys/types.h>
-#include<sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <dirent.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <limits.h>
+#include <ctype.h>
+#include <sys/stat.h>
 
-char *current;
-char *temp_dir;
+char file_list[2048][PATH_MAX];
 
-pthread_t thread[5000];
-
-void* pindah(void *arg);
-void* pindah_bbrp(void *arg);
-void* pindah_semua(void *arg);
-void pindah_file(char source[], char destination[]);
-
-char* get_filename(char string[]);
-char* get_ext(char string[]);
-
-void pindah_file(char source[], char destination[]){
-    int y;
-    FILE *file1, *file2;
-
-    file1 = fopen(source, "r");
-    file2 = fopen(destination, "w");
-    
-    if (!file1) {
-        fclose(file2);
-        return;
-    }
-
-    if(!file2) return;
-
-    while((y = fgetc(file1)) != EOF) {
-        fputc(y, file2);
-    }
-
-    fclose(file1);
-    fclose(file2);
-    remove(source);
-  
-    return;
-}
-
-char* get_filename(char string[]){
-    char* x;
-    char* hasilnya;
-  
-    x = strchr(string,'/');
-    if(x == NULL)
-        return string;
-
-    while(x != NULL) {
-        hasilnya = x+1;
-        x = strchr(x+1,'/');
-    }
-  
-    return hasilnya;
-}
-
-char* get_ext(char string[]){
-    char* x = get_filename(string);
-    char* hasilnya = strchr(x, '.');
-  
-    if(hasilnya == NULL) return NULL;
-    else return (hasilnya+1);
-}
-
-void* pindah(void *arg){
-    int i;
-    pthread_t id = pthread_self();
-    char *ext_fldr;
-    char destination_folder[5000];
-
-    ext_fldr = get_ext((char *)arg);
-    if(ext_fldr == NULL){
-        strcpy(destination_folder, "Unknown");
+void get_ext(char* fileName, char *exten){
+    char *ext = strchr(fileName, '.');
+    if (ext == NULL) {
+        strcpy(exten,"Unknown");
+    } 
+    else if (ext == fileName){
+        strcpy(exten,"Hidden");
     }
     else{
-        strcpy(destination_folder, ext_fldr);
-        for(i = 0; i < strlen(destination_folder); i++){
-            if(destination_folder[i] < 91 && destination_folder[i] > 64)
-                destination_folder[i] = destination_folder[i] + 32;
+        strcpy(exten,ext+1);
+    }
+}
+
+bool checkExistAndRegFile(char *basePath){
+    struct stat buff;
+    int exist = stat(basePath,&buff);
+    if(exist == 0){
+        if( S_ISREG(buff.st_mode) ) return true;
+        else return false;
+    }
+    else  
+        return false;
+}
+
+void *pindah_file( void *arg ){
+    char basePath[PATH_MAX];
+    strcpy(basePath,(char *) arg);
+
+    if(checkExistAndRegFile(basePath)){
+        const char *p="/";
+        char *a,*b;
+        char fullPath[PATH_MAX];
+        strcpy(fullPath,(char *) arg);
+
+        char fileName[100];
+
+        for( a=strtok_r(fullPath,p,&b) ; a!=NULL ; a=strtok_r(NULL,p,&b)){
+            memset(fileName,0,sizeof(fileName));
+            strcpy(fileName,a);
+        }
+
+        char ext[PATH_MAX];
+        get_ext(fileName,ext);
+
+        if(strcmp(ext,"Hidden") != 0 && strcmp(ext,"Unknown") != 0){
+            for(int i = 0; i<strlen(ext); i++){
+                ext[i] = tolower(ext[i]);
+            }
+        }
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd)) == NULL){
+            perror("getcwd() error");
+            return (void *) 0;
+        }
+
+        char destDir[PATH_MAX];
+        sprintf(destDir,"%s/%s",cwd,ext);
+        mkdir(destDir,0777);
+
+        char dest[PATH_MAX];
+        sprintf(dest,"%s/%s/%s",cwd,ext,fileName);
+        rename(basePath,dest);
+        return (void *) 1;
+    }
+    else return (void *) 0;
+}
+
+int listFilesRecursively(char *basePath, int *fileCount){
+    char path[PATH_MAX];
+    struct dirent *dp;
+    DIR *dir = opendir(basePath);
+
+    if (!dir)
+        return 0;
+
+    while ((dp = readdir(dir)) != NULL){
+        if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0){
+            char fullPath[PATH_MAX];
+            sprintf(fullPath,"%s/%s",basePath,dp->d_name);
+            if(checkExistAndRegFile(fullPath)){
+                sprintf(file_list[*fileCount],"%s",fullPath);
+                *fileCount += 1;
+            }
+            strcpy(path, basePath);
+            strcat(path, "/");
+            strcat(path, dp->d_name);
+
+            listFilesRecursively(path,fileCount);
         }
     }
-    
-    if(mkdir(destination_folder, 0777) == -1);
-
-    char destination_path[5000];
-  
-    snprintf(destination_path, 5000, "%s/%s/%s", current, destination_folder, get_filename((char *)arg));
-    pindah_file((char *)arg, destination_path);
+    closedir(dir);
+    return 1;
 }
 
-void* pindah_semua(void *arg){
-    pthread_t id = pthread_self();
-    char *ext_fldr;
-    char destination_folder[5000];
-
-    ext_fldr = get_ext((char *)arg);
-    if(ext_fldr == NULL){
-        strcpy(destination_folder, "Unknown");
+//fungsi main
+int main(int argc,char* argv[]){
+    if(argc<2){
+        printf ("invalid argumen\n");
+        return 0;
     }
-    else{
-        strcpy(destination_folder, ext_fldr);
-        int i;
-        for(i = 0; i < strlen(destination_folder); i++){
-            if(destination_folder[i] < 91 && destination_folder[i] > 64)
-                destination_folder[i] = destination_folder[i] + 32;
+
+    char baseDir[PATH_MAX];
+    if(!strcmp(argv[1],"*")){
+        if(argc != 2){
+            printf ("* Didn't Need Another Argument\n");
+            exit(1);
+            return 0;
+        }
+        if (getcwd(baseDir, sizeof(baseDir)) == NULL) {
+            perror("getcwd() error");
+            return 0;
         }
     }
+    else if(!strcmp(argv[1],"-f")){
+        if(argc<3){
+            printf ("Need Minimal 1 Path to File\n");
+            exit(1);
+            return 0;
+        }
 
-    if(mkdir(destination_folder, 0777) == -1);
+        pthread_t tid[argc-2];
 
-    char destination_path[5000];
-    char source_path[5000];
-  
-    snprintf(source_path, 5000, "%s/%s", current, (char *)arg);
-    snprintf(destination_path, 5000, "%s/%s/%s", current, destination_folder, get_filename((char *)arg));
-    pindah_file(source_path, destination_path);
-}
+        for(int i = 2; i<argc; i++){
+            pthread_create( &(tid[i-2]), NULL, pindah_file, (void*) argv[i]);
+        }
 
-void* pindah_bbrp(void *arg){
-    int i;
-    pthread_t id = pthread_self();
-    char *ext_fldr;
-    char destination_folder[5000];
-
-    ext_fldr = get_ext((char *)arg);
-
-    if(ext_fldr == NULL)
-        strcpy(destination_folder, "Unknown");
-    else{
-        strcpy(destination_folder, ext_fldr);
-        for(i=0; i<strlen(destination_folder); i++)
-            if(destination_folder[i] < 91 && destination_folder[i] > 64)
-                destination_folder[i] = destination_folder[i] + 32;
-    }
-            
-    if(mkdir(destination_folder, 0777) == -1);
-
-    char destination_path[5000];
-    char source_path[5000];
-    snprintf(source_path, 5000, "%s/%s", temp_dir, (char *)arg);
-    snprintf(destination_path, 5000, "%s/%s/%s", current, destination_folder, get_filename((char *)arg));
-    pindah_file(source_path, destination_path);
-}
-
-int main(int argc, char **argv){
-    int i=2, j;
-    char check[1000];
-    current = getcwd(check, 1000);
-
-    if(strcmp(argv[1], "-f") == 0){
-    	
-        while(argv[i] != NULL){
-        	
-           int cekin = pthread_create(&(thread[i-2]), NULL, &pindah, (void *)argv[i]);
-          
-           if(cekin==0)printf("File %d : Berhasil Dikategorikan\n", i-1);
-           else printf("File % : Sad, Gagal :(\n", i-1);
-           i++;
+        for (int i = 0; i < argc-2; i++){
+            int returnValue;
+            void *ptr;
+            pthread_join( tid[i], &ptr);
+            returnValue = (int) ptr;
+            if(returnValue) printf("File %d : Berhasil Dikategorikan\n", i+1);
+            else printf("File %d : Sad, gagal :(\n", i+1);
         }
         
-        for(j = 0; j < (i-1); j++) pthread_join(thread[j], NULL);
-        
+        return 0;
     }
+    else if(!strcmp(argv[1],"-d")){
+        if(argc != 3){
+            printf ("Only Need 1 Path to Directory\n");
+            exit(1);
+            return 0;
+        } 
+        strcpy(baseDir,argv[2]);
+    }
+    else printf ("invalid argumen\n");
+
+    int fileCount = 0;
+    if(!listFilesRecursively(baseDir, &fileCount)){
+        printf("Yah, gagal disimpan :(\n");
+        return 0;
+    }
+    pthread_t tid[fileCount];
+    for(int i = 0; i<fileCount; i++){
+        pthread_create( &(tid[i]), NULL, pindah_file, (void*) file_list[i]);
+    }
+
+    for (int i = 0; i < fileCount; i++){
+        void *ptr;
+        pthread_join( tid[i], &ptr);
+    }
+
+    if(!strcmp(argv[1],"-d")) printf("Direktori sukses disimpan!\n");
+    return 0;
 }
