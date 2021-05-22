@@ -12,7 +12,7 @@ Waktu pengerjaan soal shift yang berbarengan dengan minggu ETS menyebabkan penge
 - Sama seperti kendala di atas, ditambah dengan banyaknya command yang harus dikerjakan menyebabkan soal 1 tidak dapat diselesaikan tepat waktu dan baru bisa diunggah pada masa revisi.
 - Banyak sekali error yang terjadi saat pengerjaan hingga tidak mampu didokumentasikan, contohnya puluhan kali syntax error, file yang tidak dapat terkirim dan di-download, kesalahan alokasi memori pada program, file **running.log** dan **files.tsv** yang tidak ter-update saat terjadi penambahan/penghapusan file, dan infinite loop saat menampilkan informasi file pada command `see`.
 
-### Poin (a)
+### Poin (a) dan (b)
 1. Ketika program server dijalankan, program akan terlebih dahulu membuat file **akun.txt**, **files.tsv**, **running.log**, dan direktori **FILES** pada folder Server melalui fungsi `check_files`, kemudian membuat koneksi socket untuk komunikasi antara program server dan client. Koneksi pada program client ditutup jika mengalami kegagalan.
 
 **Server**
@@ -86,6 +86,7 @@ int main () {
 	for (; i<10; i++) connections[i] = -1;
     connections[0] = server_fd;
     ...
+}
 ```
 **Client**
 ```c
@@ -323,9 +324,245 @@ int main(){
 ```
 
 **Dokumentasi**
+![Screenshot from 2021-05-22 16-27-42](https://user-images.githubusercontent.com/70105993/119225500-b12bd500-bb36-11eb-9ff3-7a40a991d83f.png)
 
-![Screenshot from 2021-05-22 16-38-04](https://user-images.githubusercontent.com/70105993/119225420-48445d00-bb36-11eb-8afe-8d8a70668a4d.png)
+### Poin (c) dan (h)
+Ketika server menerima command `add` dari client, server akan menambahkan file yang dikirim client ke dalam folder **FILES**, dan menambah baris baru pada file **files.tsv** sesuai data file yang dikirim client.
 
+**Server**
+
+Pada fungsi `add_cmd`, server menerima data berupa publisher, tahun publikasi, dan path dari file (buku) yang dikirim client, kemudian dicatat pada file **files.tsv**. File kemudian diterima per baris pada server hingga akhir file, dan setelah file diterima, informasi penambahan file dicatat pada file **running.log**. Fungsi `get_file_name` digunakan untuk mendapatkan file name dari path file yang dikirim client untuk digunakan dalam pencatatan ke file **running.log**. Setelah proses penambahan file selesai dan lognya tercatat, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+```c
+void get_file_name(char filepath[], char filename[]) {
+    int i = strlen(filepath) - 1, j = 0;
+    while(i) {
+        filepath[i+1] = '\0';
+        if(filepath[i] == '/') break;
+        filename[j++] = filepath[i--];
+    }
+    filename[j] = '\0';
+    strrev(filename);
+}
+...
+void add_cmd(int client, char userdata[128]) {
+    char fname[100], publisher[100], tahun[10], fp[100], message[100], fullpath[256], file_data[4096];
+    int return_publisher, return_tahun, return_filepath, return_stat, return_receive;
+    return_publisher = recv(client, publisher, sizeof(publisher), 0);
+    return_tahun = recv(client, tahun, sizeof(tahun), 0);
+    return_filepath = recv(client, fp, sizeof(fp), 0);
+
+    get_file_name(fp, fname);
+    sprintf(fullpath, "%s%s", S_PATH, fname);
+    
+    //printf("%s, %s, %s\n", publisher, tahun, fullpath);
+
+    FILE *files_tsv = fopen("files.tsv", "a");
+    fprintf(files_tsv, "%s\t%s\t%s\n", publisher, tahun, fullpath);
+    fclose(files_tsv);
+
+    FILE *file = fopen(fullpath, "w+");
+    while(1) {
+        return_receive = recv(client, file_data, 4096, 0);
+        //printf("Data: %s", file_data);
+    	fflush(stdout);
+        if(return_receive != -1){
+            if(!strcmp(file_data, "OK")) break;
+		}
+            
+        fprintf(file, "%s", file_data);
+        bzero(file_data, 4096);
+    }
+    fclose(file);
+
+    FILE *log = fopen("running.log", "a");
+    fprintf(log, "Tambah : %s (%s)\n", fname, userdata);
+    fclose(log);
+    fflush(stdout);
+}
+...
+int main () {
+   ...
+            for (i=1; i<10; i++) {
+                if ((connections[i]>0) && (FD_ISSET(connections[i], &read_fd_set))) {
+                    return_value1 = recv(connections[i], command, sizeof(command), 0);
+                    ...
+                    if (return_value1) {
+                        ...
+			else {
+                            if(login) {
+                                printf("User access is granted\n");
+                                if(!strcmp(command, "add")) add_cmd(connections[isServing], userdata);
+                                ...
+                        }
+                        
+                        printf("ID:Password :: %s:%s\n\n", id, password);
+                      	fflush(stdout);
+			...
+}
+```
+
+**Client**
+
+Pada fungsi `add_book`, client mengirim data publisher, tahun publikasi, dan file dari path yang dimasukkan. 
+```c
+void add_book(int fd){
+    char publisher[100], tahun[10], filepath[128];
+    
+    printf("Publisher: "); fgets(publisher, sizeof(publisher), stdin);
+    publisher[strcspn(publisher, "\n")] = 0;
+    
+    printf("Tahun Publikasi: "); fgets(tahun, sizeof(tahun), stdin);
+    tahun[strcspn(tahun, "\n")] = 0;
+    
+    printf("Filepath: "); fgets(filepath, sizeof(filepath), stdin);
+    filepath[strcspn(filepath, "\n")] = 0;
+
+    int return_val;
+    return_val = send(fd, publisher, sizeof(publisher), 0);
+    return_val = send(fd, tahun, sizeof(tahun), 0);
+    return_val = send(fd, filepath, sizeof(filepath), 0);
+
+    FILE *file = fopen(filepath, "r");
+    char file_data[4096] = {0};
+
+    while(fgets(file_data, 4096, file)) {
+        if(send(fd, file_data, sizeof(file_data), 0) != -1) bzero(file_data, 4096);
+    }
+    
+    fclose(file);
+    printf("\e[32mSuccessfully added file.\e[0m\n");
+    send(fd, "OK", 4096, 0);
+}
+...
+int main(){
+    	...
+        while(1){
+            printf("\e[32mPlease input the operation you would like to do: add/download/delete/see/find\n>\e[0m ");
+            scanf("%s", command); getchar();
+            
+            for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
+            
+            return_val = send(fd, command, sizeof(command), 0);
+            if(!strcmp(command, "login") || !strcmp(command, "register"))  printf("\e[32mYou are already logged in.\e[0m\n");
+            if(!strcmp(command, "add")) add_book(fd);
+            ...
+        }
+
+        sleep(2);
+        if(login) break;
+	}
+	...
+}
+```
+
+### Poin (d)
+
+### Poin (e) dan (h)
+Ketika server menerima command `delete` dari client, server akan mengganti nama file yang dimasukkan client menjadi ‘old-NamaFile.ekstensi’, dan menghapus baris informasi file tersebut pada **files.tsv** jika ada.
+
+**Server**
+
+- Pada fungsi `delete_cmd`, server terlebih dahulu mencari nama file yang dimasukkan client di file **files.tsv**. Tiap baris pada **files.tsv** dimasukkan ke string `tmp` dan dicocokkan dengan nama file yang dimasukkan client. Jika sama, maka baris tidak dimasukkan pada file **temp.tsv** yang nantinya akan dijadikan file **files.tsv** baru setelah penghapusan selesai sehingga baris informasi file tersebut tidak ada lagi, dan mengubah flag `isFound` menjadi 1. Jika tidak sama, maka baris dimasukkan pada **temp.tsv**. Setelah penghapusan selesai, **files.tsv** dihapus dan **temp.tsv** di-rename menjadi **files.tsv**.
+- Pada fungsi `delete_cmd`, jika `isFound = 1` (artinya ada file yang dapat dihapus), maka pertama-tama server akan mengirim pesan 'OK' ke client tanda nama file yang dimasukkan dapat dihapus. Nama file tersebut pada folder **FILES** diubah menjadi ‘old-NamaFile.ekstensi’, dan log penghapusan dicatat pada **running.log**. Jika `isFound = 0` maka tidak ada file yang dihapus, dan server mengirim pesan '404' ke client.
+- Setelah proses penghapusan file selesai dan lognya tercatat, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+```c
+int find_in_tsv(int *isFound, char filename[]) {
+    FILE *files_tsv = fopen("files.tsv", "r+");
+    FILE *temp_tsv = fopen("temp.tsv", "w+");
+    char tmp[256], row[256];
+    
+    while(fgets(row, 256, files_tsv) != 0){
+        if(sscanf(row, "%255[^\n]", tmp) != 1) break;
+        if(strstr(tmp, filename) != 0)  *isFound = 1;
+        else fprintf(temp_tsv, "%s\n", tmp);
+    }
+    remove("files.tsv");
+    rename("temp.tsv", "files.tsv");
+
+    fclose(temp_tsv); fclose(files_tsv);
+    return 0;
+}
+...
+void delete_cmd(int client, char userdata[128]) {
+    char filename[128], new_path[256], old_path[256];
+    int return_client= recv(client, filename, sizeof(filename), 0), isFound=0;
+    
+    find_in_tsv(&isFound, filename);
+    if(isFound) {
+        return_client = send(client, "OK", 100, 0);
+        sprintf(new_path, "%sold-%s", S_PATH, filename);
+        sprintf(old_path, "%s%s", S_PATH, filename);
+        rename(old_path, new_path);
+
+        FILE *log = fopen("running.log", "a");
+        fprintf(log, "Hapus : %s (%s)\n", filename, userdata);
+        fclose(log);
+    } else return_client = send(client, "404", 100, 0);
+}
+...
+int main () {
+   ...
+            for (i=1; i<10; i++) {
+                if ((connections[i]>0) && (FD_ISSET(connections[i], &read_fd_set))) {
+                    return_value1 = recv(connections[i], command, sizeof(command), 0);
+                    ...
+                    if (return_value1) {
+                        ...
+			else {
+                            if(login) {
+                                printf("User access is granted\n");
+                                ...
+				if(!strcmp(command, "delete")) delete_cmd(connections[isServing], userdata);
+				...
+                        }
+                        
+                        printf("ID:Password :: %s:%s\n\n", id, password);
+                      	fflush(stdout);
+			...
+}
+```
+
+**Client**
+
+Pada fungsi `delete_book`, client menerima pesan dari server dan menampilkan pesan penghapusan sukses jika pesan yang diterima adalah `OK`, dan menampilkan pesan penghapusan gagal jika pesan yang diterima adalah  `404`.
+```c
+void delete_book(int fd) {
+    int return_value;
+    char filename[100], msg[100];
+
+	printf("\e[0mInput file name\n> \e[36m");
+    fgets(filename, sizeof(filename), stdin);
+    printf("\e[0m");
+    
+    filename[strcspn(filename, "\n")] = 0;
+
+    return_value = send(fd, filename, sizeof(filename), 0);
+    return_value = recv(fd, msg, 100, 0);
+    
+    if(!strcmp(msg, "OK")) printf("\e[32mSuccessfully deleted file.\e[0m\n");
+    if(!strcmp(msg, "404")) printf("\e[31mDeletion error, file not found.\e[0m\n");
+}
+...
+int main(){
+    	...
+        while(1){
+            printf("\e[32mPlease input the operation you would like to do: add/download/delete/see/find\n>\e[0m ");
+            scanf("%s", command); getchar();
+            
+            for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
+            
+            return_val = send(fd, command, sizeof(command), 0);
+            ...
+	    if(!strcmp(command, "delete")) delete_book(fd);
+	    ...
+        }
+
+        sleep(2);
+        if(login) break;
+	}
+	...
+}
+```
 
 ## Soal 2
 ## Soal 3
