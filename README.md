@@ -472,7 +472,7 @@ Ketika server menerima command `download` dari client, server akan mengirim file
 
 **Server**
 
-Pada fungsi `download_cmd`, server menerima nama file yang ingin didownload dari client, membuat string path file tersebut pada server, kemudian mengecek apakah path tersebut ada pada **files.tsv** atau tidak melalui fungsi `find_file`. Jika ada, maka server membuat file tersebut di folder **FILES**, mengisi file tersebut dengan data dari file aslinya dengan command `fgets`, dan mengirim pesan 'OK' ke client. Jika tidak ada, maka server mengirim pesan '404' ke client. Setelah proses download file selesai, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+Pada fungsi `download_cmd`, server menerima nama file yang ingin didownload dari client, membuat string path file tersebut pada server, kemudian mengecek apakah path tersebut ada pada **files.tsv** atau tidak melalui fungsi `find_file`. Jika ada, maka server membuat file tersebut di folder **FILES**, mengisi file tersebut dengan data dari file aslinya dengan command `fgets`, dan mengirim pesan `OK` ke client. Jika tidak ada, maka server mengirim pesan '404' ke client. Setelah proses download file selesai, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
 ```c
 int find_file(char filename[]) {
     FILE *tsv = fopen("files.tsv", "r");
@@ -593,12 +593,12 @@ int main(){
 ![Screenshot from 2021-05-22 20-55-39](https://user-images.githubusercontent.com/70105993/119227412-4b444b00-bb40-11eb-9284-dd1381835373.png)
 
 ### Poin (e) dan (h)
-Ketika server menerima command `delete` dari client, server akan mengganti nama file yang dimasukkan client menjadi ‘old-NamaFile.ekstensi’, dan menghapus baris informasi file tersebut pada **files.tsv** jika ada.
+Ketika server menerima command `delete` dari client, server akan mengganti nama file yang dimasukkan client menjadi `old-NamaFile.ekstensi`, dan menghapus baris informasi file tersebut pada **files.tsv** jika ada.
 
 **Server**
 
 - Pada fungsi `delete_cmd`, server terlebih dahulu mencari nama file yang dimasukkan client di file **files.tsv**. Tiap baris pada **files.tsv** dimasukkan ke string `tmp` dan dicocokkan dengan nama file yang dimasukkan client. Jika sama, maka baris tidak dimasukkan pada file **temp.tsv** yang nantinya akan dijadikan file **files.tsv** baru setelah penghapusan selesai sehingga baris informasi file tersebut tidak ada lagi, dan mengubah flag `isFound` menjadi 1. Jika tidak sama, maka baris dimasukkan pada **temp.tsv**. Setelah penghapusan selesai, **files.tsv** dihapus dan **temp.tsv** di-rename menjadi **files.tsv**.
-- Pada fungsi `delete_cmd`, jika `isFound = 1` (artinya ada file yang dapat dihapus), maka pertama-tama server akan mengirim pesan 'OK' ke client tanda nama file yang dimasukkan dapat dihapus. Nama file tersebut pada folder **FILES** diubah menjadi ‘old-NamaFile.ekstensi’, dan log penghapusan dicatat pada **running.log**. Jika `isFound = 0` maka tidak ada file yang dihapus, dan server mengirim pesan '404' ke client.
+- Pada fungsi `delete_cmd`, jika `isFound = 1` (artinya ada file yang dapat dihapus), maka pertama-tama server akan mengirim pesan `OK` ke client tanda nama file yang dimasukkan dapat dihapus. Nama file tersebut pada folder **FILES** diubah menjadi `old-NamaFile.ekstensi`, dan log penghapusan dicatat pada **running.log**. Jika `isFound = 0` maka tidak ada file yang dihapus, dan server mengirim pesan `404` ke client.
 - Setelah proses penghapusan file selesai dan lognya tercatat, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
 ```c
 int find_in_tsv(int *isFound, char filename[]) {
@@ -776,7 +776,7 @@ int main () {
 
 **Client**
 
-Pada fungsi `see_book`, client menerima data seluruh isi **files.tsv** dari server hingga menerima pesan 'OK' yang menandakan seluruh data pada **files.tsv** telah dikirim oleh server.
+Pada fungsi `see_book`, client menerima data seluruh isi **files.tsv** dari server hingga menerima pesan `OK` yang menandakan seluruh data pada **files.tsv** telah dikirim oleh server.
 ```c
 void see_book(int fd) {
     int return_value;
@@ -826,6 +826,136 @@ int main(){
 ![Screenshot from 2021-05-22 18-12-40](https://user-images.githubusercontent.com/70105993/119227010-847bbb80-bb3e-11eb-8c53-163754ee439a.png)
 ![Screenshot from 2021-05-22 18-14-22](https://user-images.githubusercontent.com/70105993/119227190-53e85180-bb3f-11eb-8d04-4db3eaab4475.png)
 
+
+### Poin (g)
+Ketika server menerima command `find` dan kueri pencarian dari client, server akan menampilkan informasi file dari **files.txt** untuk seluruh file yang dalam namanya terkandung string kueri pencarian dari client.
+
+**Server**
+
+Pada fungsi `find_cmd`, server menerima kueri pencarian dari client, dan bila baris pada **files.tsv** yang sedang diiterasi (kecuali header) tidak kosong, maka informasi tiap-tiap baris terlebih dahulu diformat dan dicocokkan sebelum dikirim. `strtok` mengambil informasi publisher, tahun, dan file path pada server dengan delimiter `\t` (tab), dan mengambil informasi file name serta ekstensinya dengan delimiter `.` dari file path, dengan terlebih dahulu mendapatkan file name dari file path pada server melalui fungsi `get_file_name` (seperti pada poin c), dan jika filename mengandung string kueri, maka kemudian data yang telah diformat dikirimkan ke client. Setelah proses output selesai, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+```c
+void find_cmd(int client) {
+    FILE *tsv_file = fopen("files.tsv", "r");
+    char query[1024], file_data[1024], file[100], filename[64], publisher[64], tahun[64], ext[64], filepath[256],
+		filename_send[1024], publisher_send[1024], tahun_send[1024], ext_send[1024], filepath_send[1024], *p;
+    int i=0, ret_c;
+    
+    ret_c = recv(client, query, 1024, 0);
+    
+    while(fgets(file_data, 1024, tsv_file) != NULL) {
+        if(i != 0) {
+            strcpy(publisher, strtok_r(file_data, "\t", &p));
+            strcpy(tahun, strtok_r(NULL, "\t", &p));
+            strcpy(filepath, strtok_r(NULL, "\t", &p));
+            filepath[strlen(filepath)-1] = '\0';
+            sprintf(filepath_send, "Filepath: %s\n\n", filepath);
+
+            get_file_name(filepath, file);
+
+            strcpy(filename, strtok_r(file, ".", &p));
+            strcpy(ext, strtok_r(NULL, ".", &p));
+            
+			if(strstr(file, query)) {
+	            sprintf(filename_send, "Nama: %s\n", filename);
+	            sprintf(publisher_send, "Publisher : %s\n", publisher);
+	            sprintf(tahun_send, "Tahun publishing: %s\n", tahun);
+	            sprintf(ext_send, "Ekstensi File: %s\n", ext);
+				
+				send(client, "next", 1024, 0);
+	            send(client, filename_send, 1024, 0);
+	            send(client, publisher_send, 1024, 0);
+	            send(client, tahun_send, 1024, 0);
+	            send(client, ext_send, 1024, 0);
+	            send(client, filepath_send, 1024, 0);
+	            printf("%s\n%s\n%s\n%s\n%s\n", filename, publisher, tahun, ext, filepath);
+	            sleep(1);
+	    	}
+        }
+        i++;
+        bzero(file_data, sizeof(file_data));
+    }
+    fclose(tsv_file);
+	ret_c = send(client, "OK", 1024, 0);
+	fflush(stdout);
+}
+...
+int main () {
+   ...
+            for (i=1; i<10; i++) {
+                if ((connections[i]>0) && (FD_ISSET(connections[i], &read_fd_set))) {
+                    return_value1 = recv(connections[i], command, sizeof(command), 0);
+                    ...
+                    if (return_value1) {
+                        ...
+			else {
+                            if(login) {
+                                printf("User access is granted\n");
+                                ...
+				if(!strcmp(command, "find")) find_cmd(connections[isServing]);
+				...
+                        }
+                        
+                        printf("ID:Password :: %s:%s\n\n", id, password);
+                      	fflush(stdout);
+			...
+}
+```
+
+**Client**
+
+Pada fungsi `find_book`, client mengirim kueri pencarian ke server, dan menerima informasi file dari **files.tsv** yang ditemukan sesuai kueri pencarian dari server hingga menerima pesan `OK` yang menandakan seluruh data pada **files.tsv** telah dikirim oleh server. Maka, jika tidak ditemukan file yang namanya mengandung string kueri pencarian, maka client tidak menampilkan data apapun.
+```c
+void find_book(int fd) {
+    int return_value;
+    char query[1024], filename[1024], publisher[1024], tahun[1024], ext[1024], filepath[1024], msg[1024];
+	
+	printf("\e[0mInput search query\n> \e[36m");
+    fgets(query, sizeof(query), stdin);
+    printf("\e[0m");
+    
+    query[strcspn(query, "\n")] = 0;
+    return_value = send(fd, query, sizeof(query), 0);
+    
+    while(1){
+    	if(recv(fd, msg, sizeof(msg), 0) != -1){
+    		if(!strcmp(msg, "OK")) break;
+		}
+        return_value = recv(fd, filename, 1024, 0);
+        printf("%s", filename);
+        return_value = recv(fd, publisher, 1024, 0);
+        printf("%s", publisher);
+        return_value = recv(fd, tahun, 1024, 0);
+        printf("%s", tahun);
+        return_value = recv(fd, ext, 1024, 0);
+        printf("%s", ext);
+        return_value = recv(fd, filepath, 1024, 0);
+        printf("%s", filepath);
+    }
+}
+...
+int main(){
+    	...
+        while(1){
+            printf("\e[32mPlease input the operation you would like to do: add/download/delete/see/find\n>\e[0m ");
+            scanf("%s", command); getchar();
+            
+            for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
+            
+            return_val = send(fd, command, sizeof(command), 0);
+            ...
+	    if(!strcmp(command, "find")) find_book(fd);
+        }
+
+        sleep(2);
+        if(login) break;
+	}
+	...
+}
+```
+
+**Dokumentasi**
+
+![Screenshot from 2021-05-22 18-26-36](https://user-images.githubusercontent.com/70105993/119228417-86954880-bb45-11eb-874f-743b656bf7b5.png)
 
 ## Soal 2
 ## Soal 3
