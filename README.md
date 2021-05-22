@@ -324,6 +324,7 @@ int main(){
 ```
 
 **Dokumentasi**
+
 ![Screenshot from 2021-05-22 16-27-42](https://user-images.githubusercontent.com/70105993/119225500-b12bd500-bb36-11eb-9ff3-7a40a991d83f.png)
 
 ### Poin (c) dan (h)
@@ -455,7 +456,141 @@ int main(){
 }
 ```
 
+**Dokumentasi**
+
+- Penambahan total 5 file .txt sesuai arahan pada soal
+
+![Screenshot from 2021-05-22 18-12-29](https://user-images.githubusercontent.com/70105993/119227008-834a8e80-bb3e-11eb-8577-1d22681dc53b.png)
+![Screenshot from 2021-05-22 18-12-40](https://user-images.githubusercontent.com/70105993/119227010-847bbb80-bb3e-11eb-8c53-163754ee439a.png)
+
+- Bukti bahwa file pada path asli yang dikirim client (kiri dan pojok kanan atas, path `~`) sama dengan file yang diterima server di folder **FILES**
+
+![Screenshot from 2021-05-22 18-11-45](https://user-images.githubusercontent.com/70105993/119227006-8180cb00-bb3e-11eb-8649-b7c0265ba9ae.png)
+
 ### Poin (d)
+Ketika server menerima command `download` dari client, server akan mengirim file dalam folder **FILES** menuju client sesuai file name yang dimasukkan client, jika baris informasi dari file dengan file name yang sama dengan yang dimasukkan client terdapat dalam **files.tsv**.
+
+**Server**
+
+Pada fungsi `download_cmd`, server menerima nama file yang ingin didownload dari client, membuat string path file tersebut pada server, kemudian mengecek apakah path tersebut ada pada **files.tsv** atau tidak melalui fungsi `find_file`. Jika ada, maka server membuat file tersebut di folder **FILES**, mengisi file tersebut dengan data dari file aslinya dengan command `fgets`, dan mengirim pesan 'OK' ke client. Jika tidak ada, maka server mengirim pesan '404' ke client. Setelah proses download file selesai, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+```c
+int find_file(char filename[]) {
+    FILE *tsv = fopen("files.tsv", "r");
+    char check[256];
+    
+    while(fscanf(tsv,"%s", check) == 1){
+        if(strstr(check, filename)!=0) {
+                fclose(tsv);
+                return 1;
+        }
+    }
+    fclose(tsv);
+    return 0;
+}
+...
+void download_cmd(int client) {
+    char fpath[512];
+    char fname[256];
+
+    int return_fn = recv(client, fname, sizeof(fname), 0);
+
+    sprintf(fpath, "%s%s", S_PATH, fname);
+    printf("%s\n", fpath);
+
+    if(find_file(fname)) {
+        FILE *book = fopen(fpath, "r");
+        char file_data[4096] = {0};
+
+        while(fgets(file_data, 4096, book) != NULL) {
+            if(send(client, file_data, sizeof(file_data), 0) != -1)  bzero(file_data, 4096);
+        }
+        fclose(book);
+        printf("\e[32mFile sent successfully.\e[0m\n");
+        send(client, "OK", 4096, 0);
+    }
+	else send(client, "404", 4096, 0);
+}
+...
+int main () {
+   ...
+            for (i=1; i<10; i++) {
+                if ((connections[i]>0) && (FD_ISSET(connections[i], &read_fd_set))) {
+                    return_value1 = recv(connections[i], command, sizeof(command), 0);
+                    ...
+                    if (return_value1) {
+                        ...
+			else {
+                            if(login) {
+                                printf("User access is granted\n");
+                                ...
+				if(!strcmp(command, "download")) download_cmd(connections[isServing]);
+                                ...
+                        }
+                        
+                        printf("ID:Password :: %s:%s\n\n", id, password);
+                      	fflush(stdout);
+			...
+}
+```
+
+**Client**
+
+Pada fungsi `download_book`, client memasukkan nama file yang ingin didownload, menerima file dari server jika file dengan nama tersebut ada pada server dan menampilkan pesan download sukses jika pesan yang diterima adalah `OK`, serta menampilkan pesan download gagal jika pesan yang diterima adalah `404`.
+```c
+void download_book(int fd) {
+    int return_val, return_rec;
+    char filename[100], filePath[500]={0}, file_data[4096];
+    printf("\e[0mInput file name\n> \e[36m");
+    fgets(filename, sizeof(filename), stdin);
+    printf("\e[0m");
+    
+    filename[strcspn(filename, "\n")] = 0;
+    return_val = send(fd, filename, sizeof(filename), 0);
+
+    sprintf(filePath, "%s%s", "/home/farhan/Sisop/Modul3/soal-shift-sisop-modul-3-F12-2021/soal1/Client/", filename);
+    while(1) {
+        if(recv(fd, file_data, sizeof(file_data), 0) != -1) {
+            if(!strcmp(file_data, "404")) {
+                printf("\e[31mFile not found.\e[0m\n");
+                return;
+            }
+            if(!strcmp(file_data, "OK")) {
+                printf("\e[32mSuccessfully downloaded file.\e[0m\n");
+                return;
+            }
+            
+            FILE *file = fopen(filePath, "a");
+            fprintf(file, "%s", file_data);
+            bzero(file_data, 4096);
+            fclose(file);
+        }
+    }
+}
+...
+int main(){
+    	...
+        while(1){
+            printf("\e[32mPlease input the operation you would like to do: add/download/delete/see/find\n>\e[0m ");
+            scanf("%s", command); getchar();
+            
+            for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
+            
+            return_val = send(fd, command, sizeof(command), 0);
+            ...
+            if(!strcmp(command, "download")) download_book(fd);
+	    ...
+        }
+
+        sleep(2);
+        if(login) break;
+	}
+	...
+}
+```
+
+**Dokumentasi**
+
+![Screenshot from 2021-05-22 20-55-39](https://user-images.githubusercontent.com/70105993/119227412-4b444b00-bb40-11eb-9284-dd1381835373.png)
 
 ### Poin (e) dan (h)
 Ketika server menerima command `delete` dari client, server akan mengganti nama file yang dimasukkan client menjadi ‘old-NamaFile.ekstensi’, dan menghapus baris informasi file tersebut pada **files.tsv** jika ada.
@@ -524,7 +659,7 @@ int main () {
 
 **Client**
 
-Pada fungsi `delete_book`, client menerima pesan dari server dan menampilkan pesan penghapusan sukses jika pesan yang diterima adalah `OK`, dan menampilkan pesan penghapusan gagal jika pesan yang diterima adalah  `404`.
+Pada fungsi `delete_book`, client menerima pesan dari server dan menampilkan pesan penghapusan sukses jika pesan yang diterima adalah `OK`, dan menampilkan pesan penghapusan gagal jika pesan yang diterima adalah `404`.
 ```c
 void delete_book(int fd) {
     int return_value;
@@ -563,6 +698,134 @@ int main(){
 	...
 }
 ```
+
+**Dokumentasi**
+
+![Screenshot from 2021-05-22 18-14-22](https://user-images.githubusercontent.com/70105993/119227190-53e85180-bb3f-11eb-8d04-4db3eaab4475.png)
+
+### Poin (f)
+Ketika server menerima command `see` dari client, server akan menampilkan seluruh isi **files.tsv** sesuai format.
+
+**Server**
+
+Pada fungsi `see_cmd`, bila baris pada **files.tsv** yang sedang diiterasi (kecuali header) tidak kosong, maka informasi tiap-tiap baris dikirim ke client dengan terlebih dahulu diformat. `strtok` mengambil informasi publisher, tahun, dan file path pada server dengan delimiter `\t` (tab), dan mengambil informasi file name serta ekstensinya dengan delimiter `.` dari file path, dengan terlebih dahulu mendapatkan file name dari file path pada server melalui fungsi `get_file_name` (seperti pada poin c), dan kemudian dikirimkan ke client. Setelah proses output selesai, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
+```c
+void see_cmd(int client) {
+    FILE *tsv_file = fopen("files.tsv", "r");
+    char file_data[1024], file[100], filename[64], publisher[64], tahun[64], ext[64], filepath[256],
+		filename_send[1024], publisher_send[1024], tahun_send[1024], ext_send[1024], filepath_send[1024], *p;
+    int i=0, ret_c;
+    //printf("%s\n\n", file_data);
+    
+    while(fgets(file_data, 1024, tsv_file) != NULL) {
+        if(i != 0) {
+            strcpy(publisher, strtok_r(file_data, "\t", &p));
+            strcpy(tahun, strtok_r(NULL, "\t", &p));
+            strcpy(filepath, strtok_r(NULL, "\t", &p));
+            filepath[strlen(filepath)-1] = '\0';
+            sprintf(filepath_send, "Filepath: %s\n\n", filepath);
+
+            get_file_name(filepath, file);
+
+            strcpy(filename, strtok_r(file, ".", &p));
+            strcpy(ext, strtok_r(NULL, ".", &p));
+
+            sprintf(filename_send, "Nama: %s\n", filename);
+            sprintf(publisher_send, "Publisher : %s\n", publisher);
+            sprintf(tahun_send, "Tahun publishing: %s\n", tahun);
+            sprintf(ext_send, "Ekstensi File: %s\n", ext);
+			
+	    send(client, "next", 1024, 0);
+            send(client, filename_send, 1024, 0);
+            send(client, publisher_send, 1024, 0);
+            send(client, tahun_send, 1024, 0);
+            send(client, ext_send, 1024, 0);
+            send(client, filepath_send, 1024, 0);
+            printf("%s\n%s\n%s\n%s\n%s\n", filename, publisher, tahun, ext, filepath);
+            sleep(1);
+        }
+        i++;
+        bzero(file_data, sizeof(file_data));
+    }
+    fclose(tsv_file);
+	ret_c = send(client, "OK", 1024, 0);
+	fflush(stdout);
+}
+...
+int main () {
+   ...
+            for (i=1; i<10; i++) {
+                if ((connections[i]>0) && (FD_ISSET(connections[i], &read_fd_set))) {
+                    return_value1 = recv(connections[i], command, sizeof(command), 0);
+                    ...
+                    if (return_value1) {
+                        ...
+			else {
+                            if(login) {
+                                printf("User access is granted\n");
+                                ...
+				if(!strcmp(command, "see")) see_cmd(connections[isServing]);
+				...
+                        }
+                        
+                        printf("ID:Password :: %s:%s\n\n", id, password);
+                      	fflush(stdout);
+			...
+}
+```
+
+**Client**
+
+Pada fungsi `see_book`, client menerima data seluruh isi **files.tsv** dari server hingga menerima pesan 'OK' yang menandakan seluruh data pada **files.tsv** telah dikirim oleh server.
+```c
+void see_book(int fd) {
+    int return_value;
+    char filename[1024], publisher[1024], tahun[1024], ext[1024], filepath[1024], msg[1024];
+
+    while(1){
+    	if(recv(fd, msg, sizeof(msg), 0) != -1){
+    		if(!strcmp(msg, "OK")) break;
+		}
+        return_value = recv(fd, filename, 1024, 0);
+        printf("%s", filename);
+        return_value = recv(fd, publisher, 1024, 0);
+        printf("%s", publisher);
+        return_value = recv(fd, tahun, 1024, 0);
+        printf("%s", tahun);
+        return_value = recv(fd, ext, 1024, 0);
+        printf("%s", ext);
+        return_value = recv(fd, filepath, 1024, 0);
+        printf("%s", filepath);
+    }
+}
+...
+int main(){
+    	...
+        while(1){
+            printf("\e[32mPlease input the operation you would like to do: add/download/delete/see/find\n>\e[0m ");
+            scanf("%s", command); getchar();
+            
+            for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
+            
+            return_val = send(fd, command, sizeof(command), 0);
+            ...
+	    if(!strcmp(command, "see")) see_book(fd);
+	    ...
+        }
+
+        sleep(2);
+        if(login) break;
+	}
+	...
+}
+```
+
+**Dokumentasi**
+
+![Screenshot from 2021-05-22 18-12-29](https://user-images.githubusercontent.com/70105993/119227008-834a8e80-bb3e-11eb-8577-1d22681dc53b.png)
+![Screenshot from 2021-05-22 18-12-40](https://user-images.githubusercontent.com/70105993/119227010-847bbb80-bb3e-11eb-8c53-163754ee439a.png)
+![Screenshot from 2021-05-22 18-14-22](https://user-images.githubusercontent.com/70105993/119227190-53e85180-bb3f-11eb-8d04-4db3eaab4475.png)
+
 
 ## Soal 2
 ## Soal 3
