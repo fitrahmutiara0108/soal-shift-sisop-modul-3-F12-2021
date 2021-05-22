@@ -8,7 +8,7 @@
 #include <sys/time.h>
 
 // Path bertujuan memudahkan testing, bisa diganti sesuai arahan pada soal
-#define S_PATH "/home/farhan/Sisop/Modul3/FILES/"
+#define S_PATH "/home/farhan/Sisop/Modul3/soal-shift-sisop-modul-3-F12-2021/soal1/Server/FILES/"
 
 int create_socket() {
     struct sockaddr_in serv_addr;

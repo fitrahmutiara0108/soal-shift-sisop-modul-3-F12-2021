@@ -67,7 +67,7 @@ void download_book(int fd) {
     
     return_val = send(fd, filename, sizeof(filename), 0);
 
-    sprintf(filePath, "%s%s", "/home/farhan/Sisop/Modul3/", filename);
+    sprintf(filePath, "%s%s", "/home/farhan/Sisop/Modul3/soal-shift-sisop-modul-3-F12-2021/soal1/Client", filename);
     FILE *file = fopen(filePath, "w");
     fclose(file);
     while(1) {
