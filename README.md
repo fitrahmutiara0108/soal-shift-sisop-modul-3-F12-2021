@@ -333,7 +333,7 @@ Ketika server menerima command `add` dari client, server akan menambahkan file y
 **Server**
 
 - Pada fungsi `add_cmd`, server menerima data berupa publisher, tahun publikasi, dan path dari file (buku) yang dikirim client, kemudian dicatat pada file **files.tsv**. File kemudian diterima per baris pada server hingga akhir file, dan setelah file diterima, informasi penambahan file dicatat pada file **running.log**. 
-- Fungsi `get_file_name` digunakan untuk mendapatkan file name dari file path yang dikirim client untuk digunakan dalam pencatatan ke file **running.log**. String file path di-traverse dari paling kanan hingga menemukan `/` untuk mengambil file name-nya saja, kemudian karena urutan traversal terbalik (dari kanan ke kiri) maka untuk menghasilkan file name yang tepat, string yang menyimpan file name harus dibalik (`strrev`) setelah traversal selesai. Pada
+- Fungsi `get_file_name` digunakan untuk mendapatkan file name dari file path yang dikirim client untuk digunakan dalam pencatatan ke file **running.log**. String file path di-traverse dari paling kanan hingga menemukan `/` untuk mengambil file name-nya saja, kemudian karena urutan traversal terbalik (dari kanan ke kiri) maka untuk menghasilkan file name yang tepat, string yang menyimpan file name harus dibalik (`strrev`) setelah traversal selesai. Pada sistem operasi Linux, fungsi `strrev()` tidak dapat dikenali meskipun sudah menggunakan header sehingga harus didefinisikan secara manual seperti yang tertulis di bawah.
 - Setelah proses penambahan file selesai dan lognya tercatat, program server akan mencetak baris `ID:Password :: [id pengguna]:[password pengguna]`. 
 ```c
 ...
