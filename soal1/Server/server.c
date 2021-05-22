@@ -202,11 +202,11 @@ void delete_cmd(int client, char userdata[128]) {
         sprintf(new_path, "%sold-%s", S_PATH, filename);
         sprintf(old_path, "%s%s", S_PATH, filename);
         rename(old_path, new_path);
-    } else return_client = send(client, "404", 100, 0);
 
-    FILE *log = fopen("running.log", "a");
-    fprintf(log, "Hapus : %s (%s)\n", filename, userdata);
-    fclose(log);
+	    FILE *log = fopen("running.log", "a");
+	    fprintf(log, "Hapus : %s (%s)\n", filename, userdata);
+	    fclose(log)
+    } else return_client = send(client, "404", 100, 0);;
 }
 
 void see_cmd(int client) {
