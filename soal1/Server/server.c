@@ -80,28 +80,6 @@ void get_file_name(char filepath[], char filename[]) {
     strrev(filename);
 }
 
-void receive_file(int client, char filename[]) {
-    int return_rec;
-    char filePath[256], file_data[1024];
-
-    sprintf(filePath, "%s%s", S_PATH, filename);
-    FILE *file = fopen(filePath, "w");
-    fclose(file);
-    while(1) {
-        if(recv(client, file_data, sizeof(file_data), 0) != -1) {
-            if(!strcmp(file_data, "OK")) return;
-            
-            file = fopen(filePath, "a");
-            fprintf(file, "%s", file_data);
-            bzero(file_data, 1024);
-            fclose(file);
-        }
-        printf("\e[33%s\n\e[0m", file_data);
-        fflush(stdout);
-        bzero(file_data, 1024);
-    }
-}
-
 int get_account(int mode, char id[], char password[]){
     char akun[100], temp[100];
     FILE *file = fopen("akun.txt", "r");
@@ -156,7 +134,7 @@ int find_in_tsv(int *isFound, char filename[]) {
 }
 
 void add_cmd(int client, char userdata[128]) {
-    char fname[100], publisher[100], tahun[5], fp[100], message[100], fullpath[256], file_data[1024];
+    char fname[100], publisher[100], tahun[10], fp[100], message[100], fullpath[256], file_data[4096];
     int return_publisher, return_tahun, return_filepath, return_stat, return_receive;
     return_publisher = recv(client, publisher, sizeof(publisher), 0);
     return_tahun = recv(client, tahun, sizeof(tahun), 0);
@@ -164,6 +142,8 @@ void add_cmd(int client, char userdata[128]) {
 
     get_file_name(fp, fname);
     sprintf(fullpath, "%s%s", S_PATH, fname);
+    
+    //printf("%s, %s, %s\n", publisher, tahun, fullpath);
 
     FILE *files_tsv = fopen("files.tsv", "a");
     fprintf(files_tsv, "%s\t%s\t%s\n", publisher, tahun, fullpath);
@@ -171,15 +151,15 @@ void add_cmd(int client, char userdata[128]) {
 
     FILE *file = fopen(fullpath, "w+");
     while(1) {
-        return_receive = recv(client, file_data, 1024, 0);
-        //printf("%s\n", file_data);
-        fflush(stdout);
+        return_receive = recv(client, file_data, 4096, 0);
+        //printf("Data: %s", file_data);
+    	fflush(stdout);
         if(return_receive != -1){
             if(!strcmp(file_data, "OK")) break;
 		}
             
         fprintf(file, "%s", file_data);
-        bzero(file_data, 1024);
+        bzero(file_data, 4096);
     }
     fclose(file);
 
@@ -200,16 +180,16 @@ void download_cmd(int client) {
 
     if(find_file(fname)) {
         FILE *book = fopen(fpath, "r");
-        char file_data[1024] = {0};
+        char file_data[4096] = {0};
 
-        while(fgets(file_data, 1024, book) != NULL) {
-            if(send(client, file_data, sizeof(file_data), 0) != -1)  bzero(file_data, 1024);
+        while(fgets(file_data, 4096, book) != NULL) {
+            if(send(client, file_data, sizeof(file_data), 0) != -1)  bzero(file_data, 4096);
         }
         fclose(book);
         printf("\e[32mFile sent successfully.\e[0m\n");
-        send(client, "OK", 1024, 0);
+        send(client, "OK", 4096, 0);
     }
-	else send(client, "404", 1024, 0);
+	else send(client, "404", 4096, 0);
 }
 
 void delete_cmd(int client, char userdata[128]) {

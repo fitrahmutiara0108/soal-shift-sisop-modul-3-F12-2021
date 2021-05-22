@@ -35,11 +35,16 @@ int account_check(int fd, char command[]){
 }
 
 void add_book(int fd){
-    char publisher[100], tahun[5], filepath[128];
+    char publisher[100], tahun[10], filepath[128];
     
-    printf("Publisher: "); scanf("%s", publisher);
-    printf("Tahun Publikasi: "); scanf("%s", tahun);
-    printf("Filepath: "); scanf("%s", filepath);
+    printf("Publisher: "); fgets(publisher, sizeof(publisher), stdin);
+    publisher[strcspn(publisher, "\n")] = 0;
+    
+    printf("Tahun Publikasi: "); fgets(tahun, sizeof(tahun), stdin);
+    tahun[strcspn(tahun, "\n")] = 0;
+    
+    printf("Filepath: "); fgets(filepath, sizeof(filepath), stdin);
+    filepath[strcspn(filepath, "\n")] = 0;
 
     int return_val;
     return_val = send(fd, publisher, sizeof(publisher), 0);
@@ -47,27 +52,28 @@ void add_book(int fd){
     return_val = send(fd, filepath, sizeof(filepath), 0);
 
     FILE *file = fopen(filepath, "r");
-    char file_data[1024] = {0};
+    char file_data[4096] = {0};
 
-    while(fgets(file_data, 1024, file)) {
-        if(send(fd, file_data, sizeof(file_data), 0) != -1) bzero(file_data, 1024);
+    while(fgets(file_data, 4096, file)) {
+        if(send(fd, file_data, sizeof(file_data), 0) != -1) bzero(file_data, 4096);
     }
     
     fclose(file);
     printf("\e[32mSuccessfully added file.\e[0m\n");
-    send(fd, "OK", 1024, 0);
+    send(fd, "OK", 4096, 0);
 }
 
 void download_book(int fd) {
     int return_val, return_rec;
-    char filename[100], filePath[500]={0}, file_data[1024];
+    char filename[100], filePath[500]={0}, file_data[4096];
     printf("\e[0mInput file name\n> \e[36m");
-    scanf("%s", filename);
+    fgets(filename, sizeof(filename), stdin);
     printf("\e[0m");
     
+    filename[strcspn(filename, "\n")] = 0;
     return_val = send(fd, filename, sizeof(filename), 0);
 
-    sprintf(filePath, "%s%s", "/home/farhan/Sisop/Modul3/soal-shift-sisop-modul-3-F12-2021/soal1/Client", filename);
+    sprintf(filePath, "%s%s", "/home/farhan/Sisop/Modul3/soal-shift-sisop-modul-3-F12-2021/soal1/Client/", filename);
     FILE *file = fopen(filePath, "w");
     fclose(file);
     while(1) {
@@ -83,7 +89,7 @@ void download_book(int fd) {
             
             file = fopen(filePath, "a");
             fprintf(file, "%s", file_data);
-            bzero(file_data, 1024);
+            bzero(file_data, 4096);
             fclose(file);
         }
     }
@@ -94,9 +100,10 @@ void delete_book(int fd) {
     char filename[100], msg[100];
 
 	printf("\e[0mInput file name\n> \e[36m");
-    scanf("%s", filename);
-    filename[strlen(filename)] = '\0';
+    fgets(filename, sizeof(filename), stdin);
     printf("\e[0m");
+    
+    filename[strcspn(filename, "\n")] = 0;
 
     return_value = send(fd, filename, sizeof(filename), 0);
     return_value = recv(fd, msg, 100, 0);
@@ -131,9 +138,10 @@ void find_book(int fd) {
     char query[1024], filename[1024], publisher[1024], tahun[1024], ext[1024], filepath[1024], msg[1024];
 	
 	printf("\e[0mInput search query\n> \e[36m");
-    scanf("%s", query);
+    fgets(query, sizeof(query), stdin);
     printf("\e[0m");
     
+    query[strcspn(query, "\n")] = 0;
     return_value = send(fd, query, sizeof(query), 0);
     
     while(1){
@@ -187,7 +195,7 @@ int main(){
     while(1){
     	while(!login) {
             printf("\e[32mInsert your option: login/register\n>\e[0m ");
-            scanf("%s", command);
+            scanf("%s", command); getchar();
             
             for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
             
@@ -205,7 +213,7 @@ int main(){
         }
         while(1){
             printf("\e[32mPlease input the operation you would like to do: add/download/delete/see/find\n>\e[0m ");
-            scanf("%s", command);
+            scanf("%s", command); getchar();
             
             for(i=0; i<strlen(command); i++) command[i] = tolower(command[i]);
             
