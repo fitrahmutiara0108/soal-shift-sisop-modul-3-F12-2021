@@ -1,4 +1,9 @@
-# soal-shift-sisop-modul-3-F12-2021
+# Soal Shift Modul 3 Sisop 2021 (Kelompok F12)
+#### Nama anggota kelompok:
+- Farhan Arifandi (05111940000061)
+- Fitrah Mutiara (05111940000126)
+- M. Iqbal Abdi (05111940000151)
+
 ## Soal 1
 ## Soal 2
 ## Soal 3
