@@ -971,6 +971,230 @@ int main(){
 ![Screenshot from 2021-05-22 18-26-36](https://user-images.githubusercontent.com/70105993/119228417-86954880-bb45-11eb-874f-743b656bf7b5.png)
 
 ## Soal 2
+### Poin (a)
+- Pertama, inisialisasi terlebih dahulu matriks A dan B beserta baris, kolom, dan juga variabel yang akan digunakan untuk looping
+```c
+#define M1_baris 4
+#define M1_kolom 3
+#define M2_baris 3
+#define M2_kolom 6
+
+int main() {
+
+    int i,j,k;
+    int A[M1_baris][M1_kolom];
+    int B[M2_baris][M2_kolom];
+
+    ...
+}
+```
+- Selanjutnya, input nilai untuk setiap sel pada matriks A dan matriks B
+```c
+    printf("Input matrix 4x3\n");
+	for (i = 0; i < M1_baris; i++) {
+    	for (j = 0; j < M1_kolom; j++) {
+      		scanf("%d", &A[i][j]);
+   	 	}
+  	}
+  	printf("Input matrix 3x6\n");
+	for (i = 0; i < M2_baris; i++) {
+    	for (j = 0; j < M2_kolom; j++) {
+      		scanf("%d", &B[i][j]);
+   	 	}
+  	}
+```
+- Buat shared memory untuk menampung hasil perkalian matriks A dan B dengan beberapa penyesuaian. `key_t key` digunakan untuk membuat segment shared memory yang dapat diakses di `key = 1010`
+```c
+    key_t key = 1010;
+  	int (*hasil)[M2_kolom];
+
+  	int shmid = shmget(key, sizeof(int[4][6]), IPC_CREAT | 0666);
+  	hasil = shmat(shmid, NULL, 0);
+
+      ...
+    
+    shmdt(hasil);
+```
+- Fungsi dibawah ini merupakan fungsi untuk menghitung perkalian antara matriks A dan B
+```c
+    printf("Hasil Perkalian Matriks \n");
+  	for (i = 0; i < M1_baris; i++) {
+    	for (j = 0; j < M2_kolom; j++) {
+    		for (k = 0; k< 3; k++){
+      			hasil[i][j] += A[i][k] * B[k][j];
+			}
+      		printf("%d ", hasil[i][j]);
+   	 	}
+    	printf("\n");
+  	}
+```
+### Poin (b)
+- Inisiasi baris dan kolom matriks `A[]` sebagai matriks kedua, dan beberapa variabel lainnya
+```c
+#define row 4
+#define column 6
+
+typedef long long ll;
+int A[row][column], diff, i, j, isZero = 0;
+```
+- Fungsi `fact` digunakan untuk menghitung factorial dari angka yang dituju
+```c
+
+ll fact(int n) {
+    if (n == 0) return 1;
+    return n*fact(n-1);
+}
+```
+- Fungsi `diff_f` digunakan untuk menghitung nilai factorial jika angka sama dengan selisih dari selm matriks hasil `soal2a.c` dan sel matriks kedua
+```c
+ll diff_f(int n){
+	if (n == diff) return 1;
+        return n*diff_f(n-1);
+}
+```
+
+- Fungsi `*print` digunakan untuk mengoutput hasil setiap sel ke terminal
+- Jika ada nilai 0, maka akan menampilkan 0
+Jika selisih<1 atau bermakna nilai pada matriks 1 >= nilai pada matriks 2 pada index tertentu, maka akan menampilkan hasil dari fungsi factorial dengan parameter isi matriks 1 pada index tersebut
+Selain itu, akan menampilkan hasil dari fungsi `diff_f` dengan parameter isi matriks 1 pada index tersebut
+```c
+void *print(void* argv){
+	ll n = *(ll*)argv;
+	if(isZero) printf("0 ");
+	else if(diff<1) printf("%lld ", fact(n)); 
+	else printf("%lld ", diff_f(n));
+}
+```
+- Ambil hasil perkalian pada matriks `soal2a.c` di shared memory dengan `key = 1010`
+- Input angka matriks 4x6 untuk dioperasikan dengan matriks hasil `soal2a.c`
+```c
+int main(){
+	key_t key = 1010;
+    int (*hasil)[column];
+    int shmid = shmget(key, sizeof(int[4][6]), IPC_CREAT | 0666);
+    hasil = shmat(shmid, NULL, 0);
+
+    printf("Input matriks 4x6\n");
+	for (i=0; i<row; i++) {
+    	for (j=0; j<column; j++) scanf("%d", &A[i][j]);
+  	}
+    ...
+}
+```
+- Buat thread sebanyak baris*kolom yaitu 4x6 = 24
+- Variabel index yang bertambah pada tiap thread
+- Alokasi memori untuk variabel *val dan diisi dengan matriks pertama `soal2a.c`
+- Selisih untuk menghitung selisih dari matriks pertama `soal2a.c` - matriks kedua
+- isZero diset true ketika menemui nilai 0 pada matriks pertama atau kedua
+- Buat thread dengan menjalankan fungsi kondisi sebagai routine dengan atribut val sebagai variabel yang digunakan
+- Join setiap thread yang telah dibuat dengan `pthread_join(tid[i], NULL);`
+```c
+    pthread_t thread_id[row*column];
+    int count=0;
+    for(i = 0; i < row; i++){
+        for(j = 0; j < column; j++){
+        	isZero=0;
+            ll *val = malloc(sizeof(ll[4][6]));
+
+            *val = hasil[i][j];
+            diff = hasil[i][j] - A[i][j];
+
+            if(hasil[i][j]==0 || A[i][j]==0) isZero=1;
+
+            pthread_create(&thread_id[count], NULL, &print, val);
+            sleep(1);
+            count++;
+        }
+        printf("\n");
+    }
+    for (i = 0; i<count; i++) pthread_join(thread_id[i], NULL);
+```
+### Poin (c)
+- Inisialisasi `2` file descriptor dan variabel `status` untuk fungsi `wait()`
+```c
+int status;
+int fd1[2];
+int fd2[2];
+```
+- Untuk setiap file descriptor, buat pipe dengan fungsi `pipe()`, jika gagal maka akan `exit(1)`
+```c
+    if (pipe(fd1) == -1){
+        exit(1);
+    }
+    if (pipe(fd2) == -1){
+        exit(1);
+    }
+```
+- Lakukan `fork()` untuk membuat child process
+- duplikasi `fd1[1]` ke `STDOUT_FILENO`
+- Jalankan perintah `ps aux` menggunakan fungsi `execv()`
+```c
+if (child_id == 0) {
+
+        //write to fd1
+		dup2(fd1[1], 1);
+        //close fd1
+        close(fd1[0]);
+        close(fd1[1]);
+
+		char *argv1[] = {"ps", "-aux", NULL};
+		execv("/bin/ps", argv1);
+	}
+```
+- Setelah process pertama selesai, lakukan `fork()` lagi untuk memproses input selanjutnya
+- Terima output dari process pertama melalui `fd1[0]`, lalu duplikasi ke `STDIN_FILENO`
+- Kemudian duplikasi `fd2[1]` ke `STDOUT_FIlENO` untuk menuliskan output process selanutnya
+- Jalankan perintah `sort -nrk 3.3` menggunakan fungsi `execv()`
+```c
+    else {
+		while(wait(&status) > 0);
+        child_id = fork();
+        //child 2
+		if (child_id == 0) {
+
+            //read from fd1
+            dup2(fd1[0], 0);
+            //write to fd2
+            dup2(fd2[1], 1);
+
+            //close fd
+ 	        close(fd1[0]);
+		  	close(fd1[1]);
+		  	close(fd2[0]);
+		  	close(fd2[1]);
+
+            char *argv2[] = {"sort", "-nrk", "3,3", NULL};
+            execv("/usr/bin/sort", argv2);
+		}
+        ...
+	}
+```
+- Masuk ke process parent, dan tunggu process child menggunakan fungsi `wait()`
+- Process selanjutnya akan dijalakan perintah `head -5` dan menuliskan outputnya pada `STDOUT_FILENO`
+```c
+     else {
+            //close unused fd1
+			close(fd1[0]);
+			close(fd1[1]);
+
+			while(wait(&status) > 0);
+
+            //read from fd2
+			dup2(fd2[0], 0);
+            //close fd2
+			close(fd2[0]);
+            close(fd2[1]);
+
+			char *argv3[] = {"head", "-5", NULL};
+			execv("/usr/bin/head", argv3);
+		}
+```
+### Dokumentasi hasil
+- Hasil `soal2a` dan `soal2b`
+![image](https://user-images.githubusercontent.com/75016595/119247163-921e5900-bbb1-11eb-89e0-6860abe0146e.png)
+- Hasil `soal2c`
+![image](https://user-images.githubusercontent.com/75016595/119247213-f5a88680-bbb1-11eb-8efa-309276370a12.png)
+
 ## Soal 3
 - fungsi `get_ext` untuk mendapatkan eksistensi dari file
 - menggunakan strchr untuk mncari `.` pada file
