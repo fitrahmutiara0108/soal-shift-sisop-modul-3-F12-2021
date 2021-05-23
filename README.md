@@ -1085,7 +1085,7 @@ int main(){
 - Variabel index yang bertambah pada tiap thread
 - Alokasi memori untuk variabel *val dan diisi dengan matriks pertama `soal2a.c`
 - Selisih untuk menghitung selisih dari matriks pertama `soal2a.c` - matriks kedua
-- isZero diset true ketika menemui nilai 0 pada matriks pertama atau kedua
+- isZero diset `1` ketika menemui nilai 0 pada matriks pertama atau kedua
 - Buat thread dengan menjalankan fungsi kondisi sebagai routine dengan atribut val sebagai variabel yang digunakan
 - Join setiap thread yang telah dibuat dengan `pthread_join(tid[i], NULL);`
 ```c
