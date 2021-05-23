@@ -205,7 +205,7 @@ void delete_cmd(int client, char userdata[128]) {
 
 	    FILE *log = fopen("running.log", "a");
 	    fprintf(log, "Hapus : %s (%s)\n", filename, userdata);
-	    fclose(log)
+	    fclose(log);
     } else return_client = send(client, "404", 100, 0);
 }
 
